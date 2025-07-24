@@ -2,15 +2,7 @@
 """
 JSON S-expression to Lean Syntax Translator
 
-Converts JSON output from cvxpy_to_lean_json to valid CVXLean Lean code.
-Bridges the gap between CVXPY problems and CVXLean optimization syntax.
-
-Usage:
-    from json_to_lean import json_to_lean_code
-    
-    # Convert JSON to Lean code
-    lean_code = json_to_lean_code(json_string)
-    print(lean_code)
+Generates proper CVXLean syntax that matches the framework.
 """
 
 import json
@@ -19,13 +11,13 @@ from typing import Dict, Any, List, Set, Tuple, Optional
 
 
 class SExprToLeanTranslator:
-    """Translates S-expressions to Lean optimization syntax."""
+    """Translates S-expressions to proper CVXLean Lean syntax."""
     
     def __init__(self):
         self.variable_names = set()
         self.parameter_names = set()
         
-        # Mapping from CVXLean S-expr operators to Lean syntax
+        # Updated mapping for actual CVXLean operators
         self.operator_map = {
             'add': '+',
             'sub': '-', 
@@ -37,9 +29,9 @@ class SExprToLeanTranslator:
             'sqrt': 'sqrt',
             'log': 'log',
             'exp': 'exp',
-            'sq': '· ^ 2',  # Square in Lean
-            'ssq': 'sum_squares',  # Will need special handling
-            'norm2': '‖ · ‖',  # Norm in Lean
+            'sq': '^ 2',  # Square operation
+            'ssq': 'sum_squares',  # Sum of squares (CVXLean function)
+            'norm2': 'norm₂',  # L2 norm
             'max': 'max',
             'min': 'min',
             'sum': 'sum',
@@ -145,12 +137,12 @@ class SExprToLeanTranslator:
         return result
     
     def sexpr_to_lean(self, sexpr: str) -> str:
-        """Convert S-expression to Lean syntax."""
+        """Convert S-expression to proper CVXLean Lean syntax."""
         parsed = self.parse_sexpr(sexpr)
         return self._translate_parsed(parsed)
     
     def _translate_parsed(self, parsed: Any) -> str:
-        """Translate parsed S-expression to Lean syntax."""
+        """Translate parsed S-expression to CVXLean Lean syntax."""
         if isinstance(parsed, (int, float)):
             if isinstance(parsed, float) and parsed.is_integer():
                 return str(int(parsed))
@@ -191,7 +183,14 @@ class SExprToLeanTranslator:
                 left = self._translate_parsed(args[0])
                 right = self._translate_parsed(args[1])
                 lean_op = self.operator_map[op]
-                return f"({left} {lean_op} {right})"
+                
+                # Handle special cases for better readability
+                if op == 'mul' and self._is_simple_number(args[0]):
+                    return f"{left} * {right}"
+                elif op == 'mul' and self._is_simple_number(args[1]):
+                    return f"{left} * {right}"
+                else:
+                    return f"({left} {lean_op} {right})"
             elif len(args) > 2:
                 # Chain operations (left-associative)
                 result = self._translate_parsed(args[0])
@@ -221,27 +220,28 @@ class SExprToLeanTranslator:
             if len(args) >= 2:
                 base = self._translate_parsed(args[0])
                 exp = self._translate_parsed(args[1])
-                return f"{base} ^ {exp}"
+                return f"(({base}) ^ {exp})"
             return "0"
         
         elif op in ['abs', 'sqrt', 'log', 'exp']:
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
                 func_name = self.operator_map[op]
-                return f"{func_name} {arg_str}"
+                return f"{func_name} ({arg_str})"
             return "0"
         
-        # Special functions
+        # Special CVXLean functions
         elif op == 'ssq':
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
+                # In CVXLean, this would typically be sum_squares or similar
                 return f"sum_squares {arg_str}"
             return "0"
         
         elif op == 'norm2':
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
-                return f"‖{arg_str}‖"
+                return f"norm₂ ({arg_str})"
             return "0"
         
         elif op == 'sum':
@@ -261,6 +261,13 @@ class SExprToLeanTranslator:
         
         # Fallback: function call syntax
         else:
+            # Handle multiply as an alias for mul
+            if op == 'multiply':
+                if len(args) == 2:
+                    left = self._translate_parsed(args[0])
+                    right = self._translate_parsed(args[1])
+                    return f"{left} * {right}"
+            
             if len(args) == 0:
                 return op
             elif len(args) == 1:
@@ -268,17 +275,21 @@ class SExprToLeanTranslator:
                 return f"{op} {arg_str}"
             else:
                 args_str = " ".join(self._translate_parsed(arg) for arg in args)
-                return f"{op} {args_str}"
+                return f"{op} ({args_str})"
+    
+    def _is_simple_number(self, parsed_arg) -> bool:
+        """Check if parsed argument is a simple number."""
+        return isinstance(parsed_arg, (int, float))
 
 
 class JSONToLeanConverter:
-    """Converts CVXLean JSON to complete Lean optimization code."""
+    """Converts CVXLean JSON to proper CVXLean Lean optimization syntax."""
     
     def __init__(self):
         self.translator = SExprToLeanTranslator()
     
     def convert_json_to_lean(self, json_str: str) -> str:
-        """Convert JSON string to complete Lean optimization problem."""
+        """Convert JSON string to proper CVXLean optimization definition."""
         try:
             data = json.loads(json_str)
         except json.JSONDecodeError as e:
@@ -295,11 +306,11 @@ class JSONToLeanConverter:
         obj_fun = target.get("obj_fun", "(objFun 0)")
         constrs = target.get("constrs", [])
         
-        # Generate Lean code
-        return self._generate_lean_code(prob_name, domains, obj_fun, constrs)
+        # Generate proper CVXLean code
+        return self._generate_cvxlean_code(prob_name, domains, obj_fun, constrs)
     
-    def _generate_lean_code(self, prob_name: str, domains: List, obj_fun: str, constrs: List) -> str:
-        """Generate complete Lean optimization code."""
+    def _generate_cvxlean_code(self, prob_name: str, domains: List, obj_fun: str, constrs: List) -> str:
+        """Generate proper CVXLean optimization definition."""
         
         # Clear translator state
         self.translator.variable_names.clear()
@@ -307,128 +318,98 @@ class JSONToLeanConverter:
         
         # Parse objective to collect variables
         obj_lean = self.translator.sexpr_to_lean(obj_fun)
+        # Add type annotation for proper type inference
+        obj_lean = f"({obj_lean} : ℝ)"
         
         # Parse constraints to collect more variables
         constraint_lines = []
         for i, (constr_name, constr_sexpr) in enumerate(constrs):
             constr_lean = self.translator.sexpr_to_lean(constr_sexpr)
-            constraint_lines.append(f"    c{i+1} : {constr_lean}")
+            # Generate unique constraint names
+            clean_name = f"c{i+1}"
+            constraint_lines.append(f"      {clean_name} : {constr_lean}")
         
-        # Extract variable information from domains
-        domain_info = {}
-        for domain_name, domain_bounds in domains:
-            domain_info[domain_name] = domain_bounds
-        
-        # Generate variable declarations
+        # Get variable information 
         variables = sorted(self.translator.variable_names)
         parameters = sorted(self.translator.parameter_names)
         
-        # Build Lean code
+        # Build proper CVXLean code
         lines = []
         
-        # Add imports
+        # Add imports and setup
         lines.append("import CvxLean")
         lines.append("")
+        lines.append("noncomputable section")
+        lines.append("")
+        lines.append("open CvxLean Minimization Real")
+        lines.append("")
         
-        # Add variable/parameter declarations if any
-        if variables or parameters:
-            all_vars = variables + parameters
-            var_decl = " ".join(all_vars)
-            lines.append(f"variable ({var_decl} : ℝ)")
-            lines.append("")
-        
-        # Add domain constraints as separate lemmas if needed
-        domain_constraints = []
-        for var_name in variables:
-            if var_name in domain_info:
-                bounds = domain_info[var_name]
-                lo, hi, lo_open, hi_open = bounds
-                
-                if lo != "-inf":
-                    if lo_open == "0":  # closed bound
-                        domain_constraints.append(f"    domain_{var_name}_lo : {lo} ≤ {var_name}")
-                    else:  # open bound
-                        domain_constraints.append(f"    domain_{var_name}_lo : {lo} < {var_name}")
-                
-                if hi != "inf":
-                    if hi_open == "0":  # closed bound
-                        domain_constraints.append(f"    domain_{var_name}_hi : {var_name} ≤ {hi}")
-                    else:  # open bound
-                        domain_constraints.append(f"    domain_{var_name}_hi : {var_name} < {hi}")
-        
-        # Generate the optimization problem
-        lines.append(f"-- Optimization problem: {prob_name}")
+        # Create the optimization definition (proper CVXLean style)
         if variables:
-            var_decl = " ".join(variables)
-            lines.append(f"optimization ({var_decl} : ℝ)")
+            var_decl = " ".join(f"({var} : ℝ)" for var in variables)
+            lines.append(f"def {prob_name} :=")
+            lines.append(f"  optimization {var_decl}")
         else:
-            lines.append("optimization")
+            lines.append(f"def {prob_name} :=")
+            lines.append("  optimization")
         
-        lines.append(f"  minimize {obj_lean}")
+        lines.append(f"    minimize {obj_lean}")
         
-        if constraint_lines or domain_constraints:
-            lines.append("  subject to")
+        if constraint_lines:
+            lines.append("    subject to")
             lines.extend(constraint_lines)
-            lines.extend(domain_constraints)
         
-        lines.append("  by")
-        lines.append("    -- Use CVXLean's pre_dcp tactic to transform to DCP form")
-        lines.append("    pre_dcp")
-        lines.append("    -- Additional solving steps would go here")
-        lines.append("    sorry")
+        lines.append("")
+        lines.append("-- Solve the problem directly (applies pre_dcp automatically)")
+        lines.append(f"solve {prob_name}")
+        lines.append("")
+        lines.append("-- Check the results")
+        lines.append(f"#eval {prob_name}.status")
+        lines.append(f"#eval {prob_name}.solution")
+        lines.append(f"#eval {prob_name}.value")
+        lines.append("")
+        lines.append("end")
         
         return "\n".join(lines)
 
 
 def json_to_lean_code(json_str: str) -> str:
     """
-    Convert CVXLean JSON to Lean optimization code.
+    Convert CVXLean JSON to proper CVXLean Lean code.
     
     Args:
         json_str: JSON string from cvxpy_to_lean_json converter
         
     Returns:
-        Complete Lean optimization problem code
+        Proper CVXLean optimization definition
     """
     converter = JSONToLeanConverter()
     return converter.convert_json_to_lean(json_str)
 
 
-def save_lean_code(json_str: str, filename: str):
-    """Save converted Lean code to file."""
-    lean_code = json_to_lean_code(json_str)
-    with open(filename, 'w') as f:
-        f.write(lean_code)
-
-
 if __name__ == "__main__":
-    # Example usage
-    print("JSON to Lean Converter")
-    print("=" * 40)
-    
-    # Example JSON from our converter
+    # Test with the example that was failing
     example_json = '''
     {
       "request": "PerformRewrite",
-      "prob_name": "simple_example",
+      "prob_name": "quadratic_example",
       "domains": [
-        ["x", ["0", "inf", "1", "1"]],
-        ["y", ["0", "5", "1", "1"]]
+        ["x", ["0", "2", "1", "1"]]
       ],
       "target": {
-        "obj_fun": "(objFun (add (var x) (var y)))",
+        "obj_fun": "(objFun (ssq (add (var x) (neg 1))))",
         "constrs": [
           ["c1", "(le 0 (var x))"],
-          ["c2", "(le (var y) 5)"]
+          ["c2", "(le (var x) 2)"]
         ]
       }
     }
     '''
     
     try:
-        lean_code = json_to_lean_code(example_json)
-        print("Generated Lean code:")
-        print("-" * 40)
+        lean_code = fixed_json_to_lean_code(example_json)
+        print("Generated proper CVXLean code:")
+        print("-" * 50)
         print(lean_code)
     except Exception as e:
         print(f"Error: {e}")

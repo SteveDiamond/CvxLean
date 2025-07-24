@@ -6,7 +6,7 @@ open CvxLean Minimization Real BigOperators
 
 def quadratic_problem :=
   optimization (x : ℝ)
-    minimize (x + (-1)) ^ 2
+    minimize (((x + (-1))) ^ 2 : ℝ)
     subject to
       c1 : 0 ≤ x
       c2 : x ≤ 2

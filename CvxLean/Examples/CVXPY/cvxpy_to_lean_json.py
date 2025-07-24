@@ -262,9 +262,11 @@ class CVXLeanJSONEncoder:
         # Convert objective
         if problem.objective is None:
             obj_sexpr = "(objFun 0)"
+            obj_sense = "minimize"
         else:
             obj_expr = self.sexpr_encoder.expression_to_sexpr(problem.objective.expr)
             obj_sexpr = f"(objFun {obj_expr})"
+            obj_sense = problem.objective.NAME.lower()
         
         # Convert constraints
         constraints = []
@@ -282,6 +284,7 @@ class CVXLeanJSONEncoder:
             "domains": domains,
             "target": {
                 "obj_fun": obj_sexpr,
+                "obj_sense": obj_sense,
                 "constrs": constraints
             }
         }

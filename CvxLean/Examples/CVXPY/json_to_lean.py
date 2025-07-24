@@ -213,7 +213,7 @@ class SExprToLeanTranslator:
         elif op == 'sq':
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
-                return f"{arg_str} ^ 2"
+                return f"({arg_str}) ^ 2"
             return "0"
         
         elif op == 'pow':
@@ -321,12 +321,13 @@ class JSONToLeanConverter:
         target = data.get("target", {})
         
         obj_fun = target.get("obj_fun", "(objFun 0)")
+        obj_sense = target.get("obj_sense", "minimize")
         constrs = target.get("constrs", [])
         
         # Generate proper CVXLean code
-        return self._generate_cvxlean_code(prob_name, domains, obj_fun, constrs)
+        return self._generate_cvxlean_code(prob_name, domains, obj_fun, obj_sense, constrs)
     
-    def _generate_cvxlean_code(self, prob_name: str, domains: List, obj_fun: str, constrs: List) -> str:
+    def _generate_cvxlean_code(self, prob_name: str, domains: List, obj_fun: str, obj_sense: str, constrs: List) -> str:
         """Generate proper CVXLean optimization definition."""
         
         # Clear translator state
@@ -335,8 +336,8 @@ class JSONToLeanConverter:
         
         # Parse objective to collect variables
         obj_lean = self.translator.sexpr_to_lean(obj_fun)
-        # Add type annotation for objectives that use Vec.sum or summation
-        if "Vec.sum" in obj_lean or "∑" in obj_lean:
+        # Add type annotation for objectives that use Vec.sum, summation, or simple expressions
+        if "Vec.sum" in obj_lean or "∑" in obj_lean or not obj_lean.startswith("(") or "^" in obj_lean:
             obj_lean = f"({obj_lean} : ℝ)"
         
         # Parse constraints to collect more variables
@@ -390,7 +391,7 @@ class JSONToLeanConverter:
             lines.append(f"def {prob_name} :=")
             lines.append("  optimization")
         
-        lines.append(f"    minimize {obj_lean}")
+        lines.append(f"    {obj_sense} {obj_lean}")
         
         if constraint_lines:
             lines.append("    subject to")

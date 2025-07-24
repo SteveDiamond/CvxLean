@@ -113,9 +113,20 @@ def generate_examples():
     
     cvxpy_to_lean_file(portfolio_problem, "Portfolio.lean", "portfolio_optimization")
     
-    print("\nGenerated 3 working CVXLean files!")
+    # Example 4: Log-Sum-Exp Problem (New!)
+    print("4. Log-Sum-Exp Problem")
+    x = cp.Variable(name="x")
+    y = cp.Variable(name="y")
+    
+    objective = cp.Minimize(cp.log_sum_exp(cp.hstack([x, y])))
+    constraints = [x + y >= 1, x >= -2, y >= -2, x <= 2, y <= 2]
+    lse_problem = cp.Problem(objective, constraints)
+    
+    cvxpy_to_lean_file(lse_problem, "LogSumExp.lean", "log_sum_exp_problem")
+    
+    print("\nGenerated 4 working CVXLean files!")
     print("Files created:")
-    for filename in ["SimpleLP.lean", "Quadratic.lean", "Portfolio.lean"]:
+    for filename in ["SimpleLP.lean", "Quadratic.lean", "Portfolio.lean", "LogSumExp.lean"]:
         if os.path.exists(filename):
             print(f"  ✓ {filename}")
 

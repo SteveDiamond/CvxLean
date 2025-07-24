@@ -37,6 +37,10 @@ class SExprToLeanTranslator:
             'sum': 'sum',
             'tr': 'trace',
             
+            # Advanced functions - use mathematical expressions that CvxLean recognizes
+            'lse': 'log_sum_exp',  # Will be handled specially
+            'logSumExp₂': 'log_sum_exp_2',  # Will be handled specially
+            
             # Constraint operators
             'eq': '=',
             'le': '≤',
@@ -252,6 +256,19 @@ class SExprToLeanTranslator:
                 arg_str = self._translate_parsed(args[0])
                 # For vectors, use Vec.sum
                 return f"Vec.sum {arg_str}"
+            return "0"
+        
+        # Special handling for log-sum-exp functions
+        elif op == 'lse' or op == 'logSumExp₂':
+            if len(args) == 2:
+                # Two-argument log-sum-exp: log(exp(x) + exp(y))
+                arg1 = self._translate_parsed(args[0])
+                arg2 = self._translate_parsed(args[1])
+                return f"log ((exp {arg1}) + (exp {arg2}))"
+            elif len(args) >= 1:
+                # General log-sum-exp for vectors (if we support it later)
+                arg_str = self._translate_parsed(args[0])
+                return f"log (Vec.sum (Vec.exp {arg_str}))"
             return "0"
         
         # Constraint operators

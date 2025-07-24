@@ -108,6 +108,21 @@ class CVXLeanSExprEncoder:
                 else:
                     return str(val)
                 
+        # Handle reshape operations - ignore scalar reshapes
+        elif expr_type == 'reshape' or 'Reshape' in expr_type:
+            # For scalar variables, just return the underlying expression
+            if hasattr(expr, 'args') and len(expr.args) > 0:
+                inner_expr = expr.args[0]
+                # Check if it's reshaping a scalar (typically to (1,) shape)
+                if hasattr(expr, 'shape') and expr.shape == (1,):
+                    return self.expression_to_sexpr(inner_expr)
+                elif hasattr(inner_expr, 'shape') and len(inner_expr.shape) == 0:  # scalar
+                    return self.expression_to_sexpr(inner_expr)
+                else:
+                    # For non-scalar reshapes, we'd need more complex handling
+                    return self.expression_to_sexpr(inner_expr)
+            return "0"
+        
         # Handle composite expressions
         else:
             return self._handle_composite_expression(expr, expr_type)
@@ -201,6 +216,26 @@ class CVXLeanSExprEncoder:
             # Check if it's L2 norm
             if hasattr(expr, 'p') and expr.p == 2:
                 return f"(norm2 {args[0]})" if args else "(norm2 0)"
+        
+        elif expr_type == 'log_sum_exp':
+            # Special handling for log_sum_exp with hstack
+            if len(args) == 1 and hasattr(expr, 'args') and len(expr.args) == 1:
+                # Check if the argument is an hstack
+                arg_expr = expr.args[0]
+                if hasattr(arg_expr, '__class__') and 'Hstack' in arg_expr.__class__.__name__:
+                    # Extract the hstack arguments
+                    if hasattr(arg_expr, 'args') and len(arg_expr.args) == 2:
+                        # Two variables in hstack - convert to log((exp x) + (exp y))
+                        var1_sexpr = self.expression_to_sexpr(arg_expr.args[0])
+                        var2_sexpr = self.expression_to_sexpr(arg_expr.args[1])
+                        return f"(lse {var1_sexpr} {var2_sexpr})"
+            # Fallback to general log_sum_exp
+            return f"(lse {args[0]})" if args else "(lse 0)"
+        
+        elif expr_type == 'Hstack':
+            # For standalone hstack (shouldn't happen in log_sum_exp context due to above)
+            if len(args) == 2:
+                return f"(hstack {args[0]} {args[1]})"
             
         # Default case: apply operator to all arguments
         if len(args) == 0:

@@ -235,7 +235,7 @@ class SExprToLeanTranslator:
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
                 # For vectors, use summation over squared elements
-                return f"∑ i, ({arg_str} i) ^ 2"
+                return f"∑ i, (({arg_str} i) ^ 2)"
             return "0"
         
         elif op == 'norm2':
@@ -248,7 +248,7 @@ class SExprToLeanTranslator:
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
                 # For vectors, use summation over elements
-                return f"∑ i, {arg_str} i"
+                return f"∑ i, ({arg_str} i)"
             return "0"
         
         # Constraint operators
@@ -335,8 +335,9 @@ class JSONToLeanConverter:
         
         # Parse objective to collect variables
         obj_lean = self.translator.sexpr_to_lean(obj_fun)
-        # Add type annotation for proper type inference
-        obj_lean = f"({obj_lean} : ℝ)"
+        # Add type annotation for objectives that use summation
+        if "∑" in obj_lean:
+            obj_lean = f"({obj_lean} : ℝ)"
         
         # Parse constraints to collect more variables
         constraint_lines = []
@@ -377,7 +378,7 @@ class JSONToLeanConverter:
         lines.append("")
         lines.append("noncomputable section")
         lines.append("")
-        lines.append("open CvxLean Minimization Real")
+        lines.append("open CvxLean Minimization Real BigOperators")
         lines.append("")
         
         # Create the optimization definition (proper CVXLean style)

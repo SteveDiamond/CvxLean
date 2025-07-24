@@ -2,11 +2,11 @@ import CvxLean
 
 noncomputable section
 
-open CvxLean Minimization Real
+open CvxLean Minimization Real BigOperators
 
 def quadratic_problem :=
   optimization (x : ℝ)
-    minimize ((x + (-1)) ^ 2 : ℝ)
+    minimize (x + (-1)) ^ 2
     subject to
       c1 : 0 ≤ x
       c2 : x ≤ 2

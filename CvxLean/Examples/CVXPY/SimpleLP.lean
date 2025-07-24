@@ -2,11 +2,11 @@ import CvxLean
 
 noncomputable section
 
-open CvxLean Minimization Real
+open CvxLean Minimization Real BigOperators
 
 def simple_lp :=
   optimization (x : ℝ) (y : ℝ)
-    minimize ((x + 2 * y) : ℝ)
+    minimize (x + 2 * y)
     subject to
       c1 : 0 ≤ x
       c2 : 0 ≤ y

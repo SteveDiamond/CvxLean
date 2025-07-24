@@ -335,8 +335,8 @@ class JSONToLeanConverter:
         
         # Parse objective to collect variables
         obj_lean = self.translator.sexpr_to_lean(obj_fun)
-        # Add type annotation for objectives that use summation
-        if "∑" in obj_lean:
+        # Add type annotation for objectives that use Vec.sum or summation
+        if "Vec.sum" in obj_lean or "∑" in obj_lean:
             obj_lean = f"({obj_lean} : ℝ)"
         
         # Parse constraints to collect more variables

@@ -220,6 +220,9 @@ class SExprToLeanTranslator:
             if len(args) >= 2:
                 base = self._translate_parsed(args[0])
                 exp = self._translate_parsed(args[1])
+                # Parenthesize negative exponents for proper Lean syntax
+                if exp.startswith('-'):
+                    exp = f"({exp})"
                 return f"(({base}) ^ {exp})"
             return "0"
         

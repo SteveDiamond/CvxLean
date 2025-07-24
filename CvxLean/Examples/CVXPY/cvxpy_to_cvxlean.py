@@ -9,7 +9,12 @@ import cvxpy as cp
 from cvxpy_to_lean_json import problem_to_cvxlean_json
 from json_to_lean import json_to_lean_code
 import os
+import logging
 from typing import Optional
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 
 def cvxpy_to_lean_code(problem: cp.Problem, prob_name: str) -> str:
@@ -23,6 +28,19 @@ def cvxpy_to_lean_code(problem: cp.Problem, prob_name: str) -> str:
     Returns:
         CVXLean optimization definition
     """
+    # Log problem information
+    logger.info(f"Converting CVXPY problem '{prob_name}' to CVXLean")
+    logger.info(f"Problem has {len(problem.variables())} variables and {len(problem.constraints)} constraints")
+    
+    # Check for potential issues
+    if problem.objective is None:
+        logger.warning("Problem has no objective function")
+    else:
+        logger.info(f"Objective: {problem.objective.NAME} {problem.objective.expr}")
+    
+    for i, constraint in enumerate(problem.constraints):
+        logger.info(f"Constraint {i+1}: {constraint}")
+    
     # Step 1: Convert to JSON
     json_str = problem_to_cvxlean_json(problem, prob_name)
     

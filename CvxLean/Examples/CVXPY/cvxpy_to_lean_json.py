@@ -18,6 +18,10 @@ import cvxpy as cp
 from typing import Dict, Any, List, Optional, Union, Tuple
 import warnings
 import math
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class CVXLeanSExprEncoder:
@@ -64,9 +68,11 @@ class CVXLeanSExprEncoder:
     def expression_to_sexpr(self, expr) -> str:
         """Convert a CVXPY expression to S-expression string."""
         if expr is None:
+            logger.warning("Encountered None expression, converting to 0")
             return "0"
             
         expr_type = expr.__class__.__name__
+        logger.debug(f"Converting expression of type {expr_type}: {expr}")
         
         # Handle variables
         if isinstance(expr, cp.Variable):
@@ -117,6 +123,7 @@ class CVXLeanSExprEncoder:
             op = expr_type.lower().replace('expression', '')
             if not op:
                 op = 'unknown'
+            logger.warning(f"Unknown expression type: {expr_type}, using operator: {op}, expression: {expr}")
         
         # Get arguments
         args = []
@@ -230,6 +237,7 @@ class CVXLeanSExprEncoder:
             
         else:
             # Fallback for unknown constraint types
+            logger.warning(f"Unsupported constraint type: {constraint_type}, constraint: {constraint}")
             if hasattr(constraint, 'args') and len(constraint.args) >= 1:
                 expr = self.expression_to_sexpr(constraint.args[0])
                 sexpr = f"(le {expr} 0)"

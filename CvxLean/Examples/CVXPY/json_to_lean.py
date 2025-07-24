@@ -234,8 +234,8 @@ class SExprToLeanTranslator:
         elif op == 'ssq':
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
-                # In CVXLean, this would typically be sum_squares or similar
-                return f"sum_squares {arg_str}"
+                # For vectors, use summation over squared elements
+                return f"∑ i, ({arg_str} i) ^ 2"
             return "0"
         
         elif op == 'norm2':
@@ -247,7 +247,8 @@ class SExprToLeanTranslator:
         elif op == 'sum':
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
-                return f"sum {arg_str}"
+                # For vectors, use summation over elements
+                return f"∑ i, {arg_str} i"
             return "0"
         
         # Constraint operators
@@ -256,6 +257,22 @@ class SExprToLeanTranslator:
                 left = self._translate_parsed(args[0])
                 right = self._translate_parsed(args[1])
                 lean_op = self.operator_map[op]
+                
+                # Check if this is a vector inequality (scalar compared to vector)
+                if ((left.isdigit() or left in ['0', '1']) and right.startswith('weights')) or \
+                   ((right.isdigit() or right in ['0', '1']) and left.startswith('weights')):
+                    # Extract variable name for vector constraints
+                    var_part = right if right.startswith('weights') else left
+                    scalar_part = left if var_part == right else right
+                    
+                    var_name = var_part.strip()
+                    if var_name in self.variable_names:
+                        # This is likely a vector constraint
+                        if left == scalar_part:  # scalar ≤ vector → ∀ i, scalar ≤ vector i
+                            return f"∀ i, {scalar_part} {lean_op} {var_name} i"
+                        else:  # vector ≤ scalar → ∀ i, vector i ≤ scalar
+                            return f"∀ i, {var_name} i {lean_op} {scalar_part}"
+                
                 return f"{left} {lean_op} {right}"
             return "true"  # Trivial constraint
         
@@ -333,6 +350,25 @@ class JSONToLeanConverter:
         variables = sorted(self.translator.variable_names)
         parameters = sorted(self.translator.parameter_names)
         
+        # Extract variable type information from domains
+        var_types = {}
+        for domain_info in domains:
+            var_name = domain_info[0]
+            domain_data = domain_info[1]
+            if len(domain_data) > 4:  # Has shape info
+                shape_info = domain_data[4]
+                if shape_info.startswith("vector_"):
+                    size = shape_info.split("_")[1]
+                    var_types[var_name] = f"Fin {size} → ℝ"
+                elif shape_info.startswith("matrix_"):
+                    parts = shape_info.split("_")
+                    rows, cols = parts[1], parts[2]
+                    var_types[var_name] = f"Matrix (Fin {rows}) (Fin {cols}) ℝ"
+                else:  # scalar
+                    var_types[var_name] = "ℝ"
+            else:  # Default to scalar
+                var_types[var_name] = "ℝ"
+        
         # Build proper CVXLean code
         lines = []
         
@@ -346,7 +382,7 @@ class JSONToLeanConverter:
         
         # Create the optimization definition (proper CVXLean style)
         if variables:
-            var_decl = " ".join(f"({var} : ℝ)" for var in variables)
+            var_decl = " ".join(f"({var} : {var_types.get(var, 'ℝ')})" for var in variables)
             lines.append(f"def {prob_name} :=")
             lines.append(f"  optimization {var_decl}")
         else:

@@ -301,6 +301,15 @@ class CVXLeanJSONEncoder:
             # Default domain is unbounded
             domain = ["-inf", "inf", "1", "1"]  # [lo, hi, lo_open, hi_open]
             
+            # Add shape information for vector/matrix variables
+            if var.shape:
+                if len(var.shape) == 1:  # Vector variable
+                    domain.append(f"vector_{var.shape[0]}")
+                elif len(var.shape) == 2:  # Matrix variable
+                    domain.append(f"matrix_{var.shape[0]}_{var.shape[1]}")
+            else:  # Scalar variable
+                domain.append("scalar")
+            
             # Try to extract bounds from constraints
             # This is a simplified version - full implementation would need
             # more sophisticated constraint analysis

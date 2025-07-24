@@ -5,11 +5,11 @@ noncomputable section
 open CvxLean Minimization Real
 
 def portfolio_optimization :=
-  optimization (weights : ℝ)
-    minimize (sum_squares weights : ℝ)
+  optimization (weights : Fin 3 → ℝ)
+    minimize (∑ i, (weights i) ^ 2 : ℝ)
     subject to
-      c1 : sum weights = 1
-      c2 : 0 ≤ weights
+      c1 : ∑ i, weights i = 1
+      c2 : ∀ i, 0 ≤ weights i
 
 -- Solve the problem directly (applies pre_dcp automatically)
 solve portfolio_optimization

@@ -234,8 +234,8 @@ class SExprToLeanTranslator:
         elif op == 'ssq':
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
-                # For vectors, use summation over squared elements
-                return f"∑ i, (({arg_str} i) ^ 2)"
+                # For vectors, use Vec.sum with vector squaring
+                return f"Vec.sum ({arg_str} ^ 2)"
             return "0"
         
         elif op == 'norm2':
@@ -247,8 +247,8 @@ class SExprToLeanTranslator:
         elif op == 'sum':
             if len(args) >= 1:
                 arg_str = self._translate_parsed(args[0])
-                # For vectors, use summation over elements
-                return f"∑ i, ({arg_str} i)"
+                # For vectors, use Vec.sum
+                return f"Vec.sum {arg_str}"
             return "0"
         
         # Constraint operators

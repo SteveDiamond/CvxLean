@@ -6,9 +6,9 @@ open CvxLean Minimization Real BigOperators
 
 def portfolio_optimization :=
   optimization (weights : Fin 3 → ℝ)
-    minimize (∑ i, ((weights i) ^ 2) : ℝ)
+    minimize (Vec.sum (weights ^ 2) : ℝ)
     subject to
-      c1 : ∑ i, (weights i) = 1
+      c1 : Vec.sum weights = 1
       c2 : ∀ i, 0 ≤ weights i
 
 -- Solve the problem directly (applies pre_dcp automatically)
